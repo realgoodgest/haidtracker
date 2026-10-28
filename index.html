@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>haid tracker</title><meta name="title" content="haid tracker"><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="stylesheet" href="./style.css"><script src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js" async=""></script><script type="importmap">{
+  "imports": {}
+}</script></head><body>
+
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log Bajak Laut: Kalender Siklus &amp; Catatan</title>
+<style>
+  * { box-sizing:border-box; font-family: Georgia, "Trebuchet MS", system-ui, sans-serif; }
+  :root {
+    --laut:#1e3a8a; --merah:#dc2626; --kayu:#8b5a2b; --kertas:#f7ecd0; --tinta:#3b2a1a;
+    --oranye:#f97316; --kuning:#eab308; --ungu:#7c3aed; --hijau:#16a34a;
+  }
+  body {
+    margin:0; min-height:100vh; color:var(--tinta);
+    background: radial-gradient(circle at 20% 10%, #60a5fa 0%, #1e3a8a 55%, #0f1f4f 100%);
+    overflow-x:hidden;
+  }
+  /* Gelembung dan ombak ambient */
+  .gelembung { position:fixed; bottom:-40px; width:12px; height:12px; border-radius:50%; background:rgba(255,255,255,.35); animation: naikGelembung 9s linear infinite; pointer-events:none; }
+  @keyframes naikGelembung { to { transform: translateY(-110vh); opacity:0; } }
+
+  header { text-align:center; color:#fff; padding:18px 14px 8px; position:relative; }
+  header h1 { margin:0; font-size:1.4rem; letter-spacing:.5px; text-shadow:0 2px 6px rgba(0,0,0,.35); }
+  header small { opacity:.9; }
+  .kapal { width:150px; display:block; margin:0 auto; animation: ayun 3.5s ease-in-out infinite; filter: drop-shadow(0 6px 8px rgba(0,0,0,.3)); }
+  @keyframes ayun { 0%,100%{transform:translateY(0) rotate(-1.2deg);} 50%{transform:translateY(-6px) rotate(1.2deg);} }
+  .ombak { position:absolute; left:0; bottom:-10px; width:200%; height:40px; animation: geser 7s linear infinite; }
+  @keyframes geser { from{transform:translateX(0);} to{transform:translateX(-50%);} }
+
+  main { max-width:960px; margin:0 auto; padding:0 12px 28px; }
+
+  /* Peta kertas */
+  .peta {
+    background: var(--kertas);
+    background-image: radial-gradient(rgba(139,90,43,.12) 1px, transparent 1px);
+    background-size: 14px 14px;
+    border:6px double var(--kayu); border-radius:14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 0 40px rgba(139,90,43,.2);
+    padding:14px; position:relative;
+  }
+  .peta::before, .peta::after {
+    content:""; position:absolute; width:28px; height:28px; background:var(--merah); border-radius:50%; opacity:.85;
+    box-shadow: inset 0 0 0 4px #fca5a5;
+  }
+  .peta::before { top:-12px; left:-12px; }
+  .peta::after  { bottom:-12px; right:-12px; }
+
+  /* Toolbar */
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .grup { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  #judulBulan { font-weight:bold; min-width:180px; text-align:center; color:var(--laut); font-size:1.1rem; letter-spacing:.5px; }
+
+  button {
+    font-family:inherit; padding:7px 12px; border:2px solid #5c3a1a; border-radius:8px; cursor:pointer;
+    background: linear-gradient(180deg,#b07a45,#8b5a2b); color:#fff7e6; font-size:.88rem;
+    box-shadow: 0 3px 0 #5c3a1a; transition: transform .08s, box-shadow .08s, filter .2s;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:active { transform: translateY(3px); box-shadow: 0 0 0 #5c3a1a; }
+  button.aktif { background: linear-gradient(180deg,#ef4444,#b91c1c); border-color:#7f1d1d; box-shadow: 0 3px 0 #7f1d1d; }
+  button.ghost { background: linear-gradient(180deg,#fef3c7,#fde68a); color:#5c3a1a; }
+  button.hapus { background: linear-gradient(180deg,#9ca3af,#6b7280); border-color:#374151; box-shadow:0 3px 0 #374151; }
+  button.simpan { background: linear-gradient(180deg,#22c55e,#15803d); border-color:#14532d; box-shadow:0 3px 0 #14532d; }
+
+  input, select, textarea {
+    font-family:inherit; padding:7px 9px; border:2px solid #b08968; border-radius:8px; background:#fffbeb; color:var(--tinta); font-size:.9rem; width:100%;
+  }
+  textarea { min-height:70px; resize:vertical; }
+
+  /* Legenda */
+  .legenda { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; font-size:.76rem; }
+  .legenda span { padding:3px 8px; border-radius:6px; border:1px solid rgba(0,0,0,.15); }
+
+  /* Kalender */
+  .hari-nama, .kisi { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+  .hari-nama div { text-align:center; font-size:.8rem; font-weight:bold; color:var(--kayu); padding:3px 0; letter-spacing:.5px; }
+  .sel {
+    min-height:70px; border-radius:10px; background:#fffdf5; padding:4px 5px; cursor:pointer; position:relative;
+    border:1.5px solid #d6c3a0; transition: transform .18s cubic-bezier(.3,1.6,.5,1), box-shadow .18s;
+    font-size:.85rem; overflow:hidden;
+  }
+  .sel:hover { transform: translateY(-3px) rotate(-.4deg); box-shadow:0 6px 12px rgba(0,0,0,.2); z-index:3; }
+  .sel.kosong { background:transparent; border:none; cursor:default; box-shadow:none; transform:none; }
+  .sel .angka { font-weight:700; color:var(--tinta); font-size:.9rem; }
+  .sel .lbl { position:absolute; bottom:3px; left:3px; right:3px; font-size:.58rem; text-align:center; border-radius:4px; padding:1px 0; color:#fff; overflow:hidden; white-space:nowrap; }
+  .haid { background:#fecaca; border-color:#ef4444; }
+  .haid .lbl { background:#dc2626; }
+  .tinggi { background:#fed7aa; border-color:var(--oranye); animation: denyut 2.4s ease-in-out infinite; }
+  .tinggi .lbl { background:#ea580c; }
+  .rendah { background:#fef08a; border-color:var(--kuning); }
+  .rendah .lbl { background:#a16207; }
+  .ovu { background:#ddd6fe; border:2px solid var(--ungu); }
+  .ovu .lbl { background:var(--ungu); }
+  .prediksi { border:2px dashed var(--laut) !important; }
+  .hariIni { box-shadow: 0 0 0 3px var(--laut) inset; }
+  @keyframes denyut { 0%,100%{box-shadow:0 0 0 0 rgba(249,115,22,.4);} 50%{box-shadow:0 0 0 6px rgba(249,115,22,0);} }
+
+  .ikonWaspada { position:absolute; top:3px; left:4px; width:13px; height:13px; }
+  .titikCatatan { position:absolute; top:4px; right:4px; width:16px; height:14px; }
+  .sel .mini {
+    position:absolute; top:22px; left:4px; right:4px; font-size:.62rem; line-height:1.15; color:#4a3520;
+    background:#fff7b2; padding:2px 3px; border-radius:2px; box-shadow:1px 2px 3px rgba(0,0,0,.2);
+    transform:rotate(-2deg); max-height:26px; overflow:hidden; text-overflow:ellipsis;
+  }
+  .sel.adaMini .lbl { bottom:2px; }
+
+  /* Ringkasan */
+  .panel { margin-top:16px; border-top:3px dotted var(--kayu); padding-top:14px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; }
+  .stat {
+    background:#fffdf5; border:1.5px solid #d6c3a0; border-radius:10px; padding:9px 11px; font-size:.82rem; color:#4a3520;
+    box-shadow:0 2px 0 #d6c3a0; transition: transform .2s;
+  }
+  .stat:hover { transform: translateY(-2px); }
+  .stat b { display:block; color:var(--laut); font-size:.98rem; margin-top:2px; }
+  .notif { border-radius:10px; padding:10px 12px; font-size:.86rem; margin-top:8px; border:1.5px solid; }
+  .notif.warn { background:#fef3c7; border-color:#f59e0b; }
+  .notif.danger { background:#fee2e2; border-color:#dc2626; }
+  .notif.info { background:#e0f2fe; border-color:#0284c7; }
+  .notif.ok { background:#dcfce7; border-color:#16a34a; }
+
+  /* Modal */
+  .overlay { position:fixed; inset:0; background:rgba(15,23,42,.6); display:none; align-items:center; justify-content:center; padding:12px; z-index:50; backdrop-filter: blur(2px); }
+  .overlay.buka { display:flex; animation: fade .2s; }
+  @keyframes fade { from{opacity:0;} to{opacity:1;} }
+  .modal {
+    background: var(--kertas); background-image: radial-gradient(rgba(139,90,43,.12) 1px, transparent 1px); background-size:14px 14px;
+    width:100%; max-width:520px; max-height:92vh; overflow:auto; border-radius:14px; padding:18px;
+    border:6px double var(--kayu); box-shadow:0 14px 40px rgba(0,0,0,.4); animation: gulung .35s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes gulung { from{transform:scale(.8) rotate(-2deg); opacity:0;} to{transform:none; opacity:1;} }
+  .modal h3 { margin:0 0 6px; color:var(--laut); font-size:1.15rem; }
+  .modal h4 { margin:14px 0 6px; color:var(--merah); font-size:.95rem; border-bottom:2px dotted var(--kayu); padding-bottom:3px; }
+  .modal label { display:block; margin:8px 0; font-size:.88rem; }
+  .modal .baris { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .modal .tutup { float:right; }
+  .catatanItem { background:#fff7b2; border-radius:4px; padding:8px 10px; margin:6px 0; box-shadow:2px 3px 5px rgba(0,0,0,.2); transform:rotate(-.6deg); font-size:.88rem; }
+  .catatanItem:nth-child(even){ transform:rotate(.7deg); background:#fde68a; }
+  .catatanItem .waktu { font-size:.72rem; color:#7c5e2b; }
+  .catatanItem .isi { white-space:pre-wrap; margin:4px 0; }
+  .catatanItem .aksi { text-align:right; }
+  .catatanItem .aksi button { padding:3px 8px; font-size:.75rem; }
+  .segel { display:inline-block; font-size:.75rem; background:var(--merah); color:#fff; padding:2px 8px; border-radius:10px; margin-left:6px; }
+  .tabelMini { width:100%; border-collapse:collapse; font-size:.85rem; margin-top:6px; }
+  .tabelMini td { border-bottom:1px dashed #b08968; padding:6px 2px; }
+  .tabelMini td:last-child { text-align:right; }
+
+  .panduan table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  .panduan td, .panduan th { border-bottom:1px dashed #b08968; padding:5px; text-align:left; vertical-align:top; }
+  .panduan th { color:var(--kayu); }
+  .panduan ul { padding-left:18px; font-size:.88rem; }
+
+  /* Toast */
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(120px); background:var(--laut); color:#fff; padding:10px 16px; border-radius:20px; box-shadow:0 6px 16px rgba(0,0,0,.3); transition: transform .35s cubic-bezier(.2,1.4,.4,1); z-index:99; font-size:.9rem; }
+  .toast.tampil { transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:560px) {
+    .sel { min-height:54px; font-size:.75rem; }
+    .sel .mini { display:none; }
+    .sel .lbl { font-size:.5rem; }
+  }
+</style>
+
+
+
+<div id="gelembungBox"></div>
+
+<header>
+  <svg class="kapal" viewBox="0 0 200 120" aria-label="Thousand Sunny">
+    <path d="M20 70 L180 70 L160 100 L40 100 Z" fill="#8b5a2b"></path>
+    <path d="M40 70 L40 100 M80 70 L80 100 M120 70 L120 100 M160 70 L160 100" stroke="#5c3a1a" stroke-width="2"></path>
+    <rect x="98" y="10" width="4" height="60" fill="#5c3a1a"></rect>
+    <path d="M102 12 L150 30 L102 48 Z" fill="#fff" stroke="#1e3a8a" stroke-width="2"></path>
+    <circle cx="126" cy="30" r="5" fill="#dc2626"></circle>
+    <path d="M96 14 L60 35 L96 50 Z" fill="#f1f5f9" stroke="#94a3b8"></path>
+    <circle cx="100" cy="6" r="4" fill="#1e3a8a"></circle>
+    <path d="M0 102 Q25 92 50 102 T100 102 T150 102 T200 102 L200 120 L0 120 Z" fill="#38bdf8"></path>
+  </svg>
+  <h1>Log Bajak Laut: Kalender Siklus &amp; Catatan</h1>
+  <small>Klik tanggal untuk menulis catatan, mencatat haid, dan membaca peta masa subur</small>
+  <svg class="ombak" viewBox="0 0 1200 40" preserveAspectRatio="none">
+    <path d="M0 20 Q50 0 100 20 T200 20 T300 20 T400 20 T500 20 T600 20 T700 20 T800 20 T900 20 T1000 20 T1100 20 T1200 20 L1200 40 L0 40 Z" fill="#dbeafe" opacity=".9"></path>
+  </svg>
+</header>
+
+<main>
+<div class="peta">
+
+  <div class="toolbar">
+    <div class="grup">
+      <button class="ghost" onclick="ubahBulan(-1)">◀</button>
+      <span id="judulBulan"></span>
+      <button class="ghost" onclick="ubahBulan(1)">▶</button>
+      <button class="ghost" onclick="bulanOffset=0;render()">Hari ini</button>
+    </div>
+    <div class="grup">
+      <button id="modeTunda" class="aktif" onclick="setMode('tunda')">Menunda kehamilan</button>
+      <button id="modeLain" class="ghost" onclick="setMode('lain')">Pantau saja</button>
+    </div>
+  </div>
+
+  <div class="legenda">
+    <span class="haid">Haid</span>
+    <span class="tinggi">Subur tinggi</span>
+    <span class="rendah">Jendela aman tambahan</span>
+    <span class="ovu">Ovulasi (estimasi)</span>
+    <span class="prediksi">Prediksi haid</span>
+    <span class="hariIni">Hari ini</span>
+  </div>
+
+  <div class="hari-nama">
+    <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+  </div>
+  <div class="kisi" id="kisi" style="margin-top:4px"></div>
+
+  <div class="panel">
+    <div class="stats" id="statistik"></div>
+    <div id="notifikasi"></div>
+    <div class="panduan" style="margin-top:12px" id="panduanBox"></div>
+    <div class="notif info" style="margin-top:12px">
+      Data disimpan di browser ini (localStorage). Estimasi kalender tidak menjamin tidak hamil. Gunakan kondom atau metode kontrasepsi lain, dan konsultasikan dengan bidan atau dokter.
+    </div>
+  </div>
+
+</div>
+</main>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)tutupModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="ikonWaspada" viewBox="0 0 12 12"><path d="M6 1 L11.5 11 L0.5 11 Z" fill="#f97316" stroke="#7c2d12" stroke-width=".6"></path><rect x="5.4" y="4.5" width="1.2" height="3.5" fill="#fff"></rect><rect x="5.4" y="8.5" width="1.2" height="1.2" fill="#fff"></rect></symbol>
+  <symbol id="ikonCatatan" viewBox="0 0 16 14"><path d="M1 1 H15 V10 L11 13 H1 Z" fill="#fef08a" stroke="#a16207" stroke-width=".8"></path><path d="M4 4 H12 M4 7 H10" stroke="#a16207" stroke-width=".8"></path></symbol>
+</svg>
+
+<script>
+// ===== DATA =====
+let data     = JSON.parse(localStorage.getItem("siklusData")  || "[]");
+let harian   = JSON.parse(localStorage.getItem("harianData")  || "[]");
+let catatan  = JSON.parse(localStorage.getItem("catatanData") || "[]"); // [{id, tgl, isi, waktu}]
+let mode     = localStorage.getItem("modeData") || "tunda";
+let bulanOffset = 0;
+
+function simpan() {
+  localStorage.setItem("siklusData",  JSON.stringify(data));
+  localStorage.setItem("harianData",  JSON.stringify(harian));
+  localStorage.setItem("catatanData", JSON.stringify(catatan));
+  localStorage.setItem("modeData", mode);
+}
+
+// ===== UTIL =====
+const DAY = 86400000;
+function parseTgl(s) { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }
+function fmtTgl(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function tambahHari(d,n) { return new Date(d.getTime()+n*DAY); }
+function selisihHari(a,b) { return Math.round((b-a)/DAY); }
+function fmtIndo(d) { return d.toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"}); }
+function hariIni() { const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); }
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("tampil");
+  clearTimeout(window._toastT);
+  window._toastT = setTimeout(()=>t.classList.remove("tampil"), 2000);
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+// ===== GELEMBUNG AMBIENT =====
+(function buatGelembung(){
+  const box = document.getElementById("gelembungBox");
+  for (let i=0;i<14;i++){
+    const g = document.createElement("div");
+    g.className = "gelembung";
+    const ukuran = 6 + Math.random()*14;
+    g.style.width = g.style.height = ukuran+"px";
+    g.style.left = Math.random()*100+"vw";
+    g.style.animationDelay = (-Math.random()*9)+"s";
+    g.style.animationDuration = (7+Math.random()*6)+"s";
+    box.appendChild(g);
+  }
+})();
+
+// ===== MODE =====
+function setMode(m) {
+  mode = m; simpan();
+  document.getElementById("modeTunda").className = m==="tunda" ? "aktif" : "ghost";
+  document.getElementById("modeLain").className  = m==="lain"  ? "aktif" : "ghost";
+  render();
+}
+
+// ===== ANALISIS SIKLUS =====
+function hitungSiklus() {
+  const starts = data.map(d => parseTgl(d.mulai));
+  const panjang = [];
+  for (let i=1;i<starts.length;i++) {
+    const p = selisihHari(starts[i-1], starts[i]);
+    if (p>=15 && p<=90) panjang.push(p);
+  }
+  if (!panjang.length) return null;
+  const rata = panjang.reduce((a,b)=>a+b,0)/panjang.length;
+  const min = Math.min(...panjang), max = Math.max(...panjang);
+  const sd = Math.sqrt(panjang.reduce((a,b)=>a+(b-rata)**2,0)/panjang.length);
+  return { panjang, rata:Math.round(rata*10)/10, min, max, sd:Math.round(sd*10)/10,
+           teratur: sd<=3 && panjang.length>=3, jumlahData: panjang.length };
+}
+function prediksiHaidBerikut(stat) {
+  if (!data.length) return null;
+  const terakhir = parseTgl(data[data.length-1].mulai);
+  let basis = stat ? stat.rata : 28, minP = stat ? stat.min : 28, maxP = stat ? stat.max : 28;
+  if (stat && stat.jumlahData>=6) {
+    const r = stat.panjang.slice(-6);
+    basis = r.reduce((a,b)=>a+b,0)/r.length; minP=Math.min(...r); maxP=Math.max(...r);
+  }
+  const pad = (stat && stat.jumlahData>=6) ? 0 : 3;
+  return {
+    prediksi: tambahHari(terakhir, Math.round(basis)),
+    awal: tambahHari(terakhir, minP-pad),
+    akhir: tambahHari(terakhir, maxP+pad)
+  };
+}
+function hitungMasaSubur(pred, stat) {
+  const ovulasi = tambahHari(pred.prediksi, -14);
+  const tinggi1 = tambahHari(ovulasi, -5);
+  const tinggi2 = tambahHari(ovulasi, 1);
+  let tambahan = 2;
+  if (stat && !stat.teratur) tambahan = Math.min(7, Math.ceil((stat.max-stat.min)/2)+2);
+  return { ovulasi, tinggi1, tinggi2, awalAman: tambahHari(tinggi1,-tambahan), akhirAman: tambahHari(tinggi2,tambahan) };
+}
+
+function statusHari(t) {
+  const stat = hitungSiklus();
+  const pred = prediksiHaidBerikut(stat);
+  const haid = data.some(d => {
+    const a = parseTgl(d.mulai), b = d.selesai ? parseTgl(d.selesai) : tambahHari(a,4);
+    return t>=a && t<=b;
+  });
+  const sb = pred ? hitungMasaSubur(pred, stat) : null;
+  return {
+    stat, pred, sb, haid,
+    inTinggi: sb && t>=sb.tinggi1 && t<=sb.tinggi2,
+    inAman:   sb && t>=sb.awalAman && t<=sb.akhirAman,
+    ovu:      sb && fmtTgl(t)===fmtTgl(sb.ovulasi),
+    prediksi: pred && t>=pred.awal && t<=pred.akhir
+  };
+}
+
+// ===== RENDER =====
+function render() {
+  const now = new Date();
+  const base = new Date(now.getFullYear(), now.getMonth()+bulanOffset, 1);
+  document.getElementById("judulBulan").textContent = base.toLocaleDateString("id-ID",{month:"long",year:"numeric"});
+
+  const stat = hitungSiklus();
+  const pred = prediksiHaidBerikut(stat);
+  const sb = pred ? hitungMasaSubur(pred, stat) : null;
+  const todayKey = fmtTgl(hariIni());
+
+  let h = "";
+  for (let i=0;i<base.getDay();i++) h += `<div class="sel kosong"></div>`;
+  const jumlah = new Date(base.getFullYear(), base.getMonth()+1, 0).getDate();
+
+  for (let d=1; d<=jumlah; d++) {
+    const t = new Date(base.getFullYear(), base.getMonth(), d);
+    const s = statusHari(t);
+    const key = fmtTgl(t);
+    let cls = "sel", label = "";
+
+    if (s.haid) { cls+=" haid"; label="Haid"; }
+    else if (s.ovu) { cls+=" ovu"; label="Ovulasi"; }
+    else if (s.inTinggi) { cls+=" tinggi"; label="Subur"; }
+    else if (s.inAman) { cls+=" rendah"; label="Aman?"; }
+    if (s.prediksi && !s.haid) cls+=" prediksi";
+    if (key===todayKey) cls+=" hariIni";
+
+    const daftarCatatan = catatan.filter(c => c.tgl===key);
+    if (daftarCatatan.length) cls += " adaMini";
+
+    const waspada = mode==="tunda" && s.inTinggi && !s.haid
+      ? `<svg class="ikonWaspada"><use href="#ikonWaspada"/></svg>` : "";
+    const ikonCatat = daftarCatatan.length
+      ? `<svg class="titikCatatan"><use href="#ikonCatatan"/></svg>` : "";
+    const mini = daftarCatatan.length
+      ? `<div class="mini">${escapeHtml(daftarCatatan[0].isi)}</div>` : "";
+    const lblHtml = label ? `<span class="lbl">${label}</span>` : "";
+
+    h += `<div class="${cls}" onclick="bukaModal('${key}')">
+            ${waspada}${ikonCatat}
+            <div class="angka">${d}</div>
+            ${mini}${lblHtml}
+          </div>`;
+  }
+  document.getElementById("kisi").innerHTML = h;
+  renderRingkasan(stat, pred, sb);
+}
+
+function renderRingkasan(stat, pred, sb) {
+  let s = "";
+  if (stat) {
+    s += `<div class="stat">Rata-rata siklus<b>${stat.rata} hari</b></div>`;
+    s += `<div class="stat">Rentang siklus<b>${stat.min} – ${stat.max} hari</b></div>`;
+    s += `<div class="stat">Pola<b>${stat.teratur?"Teratur":"Tidak teratur"}</b></div>`;
+    s += `<div class="stat">Siklus tercatat<b>${stat.jumlahData}</b></div>`;
+  } else {
+    s = `<div class="stat" style="grid-column:1/-1">Catat minimal 2 haid untuk statistik. Sementara memakai estimasi 28 hari dengan jendela aman lebar.</div>`;
+  }
+  if (pred) {
+    s += `<div class="stat">Prediksi haid berikut<b>${fmtIndo(pred.prediksi)}</b></div>`;
+    s += `<div class="stat">Rentang haid<b>${fmtTgl(pred.awal)} s/d ${fmtTgl(pred.akhir)}</b></div>`;
+    s += `<div class="stat">Estimasi ovulasi<b>${fmtIndo(sb.ovulasi)}</b></div>`;
+    s += `<div class="stat">Masa subur tinggi<b>${fmtTgl(sb.tinggi1)} s/d ${fmtTgl(sb.tinggi2)}</b></div>`;
+  }
+  document.getElementById("statistik").innerHTML = s;
+
+  let n = "";
+  if (stat && !stat.teratur) n += `<div class="notif warn">Siklus tidak teratur (variasi ±${stat.sd} hari). Jendela aman dilebarkan otomatis.</div>`;
+  if (stat && (stat.rata<21 || stat.rata>35)) n += `<div class="notif warn">Rata-rata siklus di luar 21–35 hari. Disarankan konsultasi dokter.</div>`;
+  if (stat && stat.max-stat.min>10) n += `<div class="notif warn">Selisih siklus terpanjang dan terpendek lebih dari 10 hari. Konsultasikan dengan bidan atau dokter.</div>`;
+  if (!stat && data.length===1) n += `<div class="notif info">Baru satu haid tercatat. Akurasi meningkat setelah tiga siklus.</div>`;
+  if (mode==="tunda" && sb) n += `<div class="notif danger"><b>Mode menunda kehamilan:</b> pada tanggal bertanda oranye, gunakan kondom atau metode lain setiap berhubungan. Jangan mengandalkan kalender saja.</div>`;
+  document.getElementById("notifikasi").innerHTML = n;
+
+  document.getElementById("panduanBox").innerHTML = `
+  <div class="panduan">
+    <h4 style="color:#b91c1c;margin:12px 0 4px">Panduan mencegah kehamilan</h4>
+    <table>
+      <tr><th>Metode</th><th>Keterangan</th></tr>
+      <tr><td>Kondom</td><td>Efektif dan melindungi dari IMS bila dipakai benar setiap kali.</td></tr>
+      <tr><td>Pil KB</td><td>Sangat efektif bila diminum rutin tiap hari. Perlu resep.</td></tr>
+      <tr><td>Suntik KB</td><td>Berlaku 1–3 bulan tergantung jenis.</td></tr>
+      <tr><td>IUD / Implan</td><td>Sangat efektif jangka panjang. Dipasang tenaga kesehatan.</td></tr>
+      <tr><td>Kalender / lendir / suhu</td><td>Tingkat kegagalan tinggi jika dipakai sendiri. Pelengkap saja.</td></tr>
+      <tr><td>Senggama terputus</td><td>Tidak disarankan. Tingkat kegagalan tinggi.</td></tr>
+    </table>
+    <ul>
+      <li>Jika kondom sobek atau lepas, pil kontrasepsi darurat bisa dipakai dalam 72–120 jam, lalu konsultasikan ke tenaga kesehatan.</li>
+      <li>Tidak ada posisi, waktu, atau cara tertentu yang memastikan tidak hamil tanpa alat kontrasepsi.</li>
+    </ul>
+  </div>`;
+}
+
+// ===== MODAL =====
+function bukaModal(key) {
+  const t = parseTgl(key);
+  const s = statusHari(t);
+  const harianHari = harian.find(x => x.tgl===key);
+  const daftar = catatan.filter(c => c.tgl===key);
+
+  let status = "Tidak ada kondisi khusus.", kelas = "info";
+  if (s.haid) { status = "Hari haid tercatat."; }
+  else if (s.inTinggi) { status = "MASA SUBUR TINGGI. Wajib kondom atau metode lain setiap berhubungan."; kelas="danger"; }
+  else if (s.inAman) { status = "Jendela aman tambahan. Tetap gunakan proteksi."; kelas="warn"; }
+  else if (s.pred) { status = "Di luar jendela masa subur estimasi. Tetap disarankan proteksi."; kelas="ok"; }
+  if (s.ovu) status += " Ini estimasi hari ovulasi.";
+
+  const riwayat = data.length ? `<table class="tabelMini">${data.map((d,i)=>`<tr><td>${d.mulai} s/d ${d.selesai||"(belum selesai)"}</td><td><button class="hapus" onclick="hapusHaid(${i})">Hapus</button></td></tr>`).join("")}</table>` : "";
+
+  const listCatatan = daftar.length
+    ? daftar.map(c => `
+        <div class="catatanItem">
+          <div class="waktu">${c.waktu}</div>
+          <div class="isi" id="isi-${c.id}">${escapeHtml(c.isi)}</div>
+          <div class="aksi">
+            <button class="ghost" onclick="editCatatan('${c.id}')">Ubah</button>
+            <button class="hapus" onclick="hapusCatatan('${c.id}')">Hapus</button>
+          </div>
+        </div>`).join("")
+    : `<p style="font-size:.85rem;color:#7c5e2b">Belum ada catatan di hari ini. Tulis catatan pertama di bawah.</p>`;
+
+  document.getElementById("modal").innerHTML = `
+    <button class="tutup ghost" onclick="tutupModal()">Tutup</button>
+    <h3>${fmtIndo(t)}</h3>
+    <div class="notif ${kelas}">${status}</div>
+
+    <h4>Catatan di kertas ini</h4>
+    ${listCatatan}
+    <label style="margin-top:10px">Tulis catatan baru
+      <textarea id="catatanBaru" placeholder="Contoh: Lelah sekali, tapi semangat! Ingat beli kondom..."></textarea>
+    </label>
+    <div class="baris"><button class="simpan" onclick="simpanCatatan('${key}')">Tempel catatan</button></div>
+
+    <h4>Catat haid</h4>
+    <label>Mulai haid<input type="date" id="mHaidMulai" value="${key}"></label>
+    <label>Selesai haid (boleh kosong)<input type="date" id="mHaidSelesai"></label>
+    <div class="baris"><button onclick="simpanHaidModal()">Simpan haid</button></div>
+    ${riwayat}
+
+    <h4>Catatan harian (opsional)</h4>
+    <label>Lendir serviks
+      <select id="mLendir">
+        <option value="">-</option>
+        <option value="kering" ${harianHari?.lendir==="kering"?"selected":""}>Kering</option>
+        <option value="lengket" ${harianHari?.lendir==="lengket"?"selected":""}>Lengket</option>
+        <option value="licin" ${harianHari?.lendir==="licin"?"selected":""}>Licin / bening</option>
+      </select>
+    </label>
+    <label>Tes LH
+      <select id="mLH">
+        <option value="">-</option>
+        <option value="negatif" ${harianHari?.lh==="negatif"?"selected":""}>Negatif</option>
+        <option value="positif" ${harianHari?.lh==="positif"?"selected":""}>Positif (lonjakan)</option>
+      </select>
+    </label>
+    <label>Suhu basal (°C)<input type="number" id="mSuhu" step="0.01" min="35" max="39" value="${harianHari?.suhu ?? ""}"></label>
+    <div class="baris"><button class="simpan" onclick="simpanHarianModal('${key}')">Simpan data harian</button></div>
+  `;
+  document.getElementById("overlay").classList.add("buka");
+}
+function tutupModal() { document.getElementById("overlay").classList.remove("buka"); }
+
+// ===== CATATAN (STICKY NOTE) =====
+function simpanCatatan(key) {
+  const isi = document.getElementById("catatanBaru").value.trim();
+  if (!isi) return toast("Tulis sesuatu dulu ya!");
+  catatan.push({
+    id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    tgl: key, isi,
+    waktu: new Date().toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"})
+  });
+  simpan(); toast("Catatan ditempel!");
+  bukaModal(key); render();
+}
+function editCatatan(id) {
+  const c = catatan.find(x => x.id===id);
+  if (!c) return;
+  const isiEl = document.getElementById("isi-"+id);
+  isiEl.innerHTML = `<textarea id="edit-${id}">${escapeHtml(c.isi)}</textarea>
+    <div class="baris"><button class="simpan" onclick="simpanEdit('${id}','${c.tgl}')">Simpan</button></div>`;
+}
+function simpanEdit(id, key) {
+  const v = document.getElementById("edit-"+id).value.trim();
+  if (!v) return toast("Catatan tidak boleh kosong.");
+  const c = catatan.find(x => x.id===id);
+  c.isi = v; simpan(); toast("Catatan diperbarui");
+  bukaModal(key); render();
+}
+function hapusCatatan(id) {
+  if (!confirm("Sobek catatan ini?")) return;
+  const key = catatan.find(x => x.id===id)?.tgl;
+  catatan = catatan.filter(x => x.id!==id);
+  simpan(); toast("Catatan disobek");
+  render(); if (key) bukaModal(key);
+}
+
+// ===== HAID =====
+function simpanHaidModal() {
+  const m = document.getElementById("mHaidMulai").value;
+  const s = document.getElementById("mHaidSelesai").value;
+  if (!m) return toast("Isi tanggal mulai haid.");
+  if (s && s<m) return toast("Tanggal selesai tidak boleh sebelum mulai.");
+  if (data.some(d=>d.mulai===m)) return toast("Tanggal ini sudah tercatat.");
+  data.push({mulai:m, selesai:s||null});
+  data.sort((a,b)=>a.mulai.localeCompare(b.mulai));
+  simpan(); toast("Haid tercatat"); tutupModal(); render();
+}
+function hapusHaid(i) {
+  if (!confirm("Hapus data haid ini?")) return;
+  const key = data[i].mulai;
+  data.splice(i,1); simpan(); render(); bukaModal(key);
+}
+
+// ===== CATATAN HARIAN =====
+function simpanHarianModal(key) {
+  const entri = {
+    tgl:key,
+    lendir: document.getElementById("mLendir").value,
+    lh: document.getElementById("mLH").value,
+    suhu: document.getElementById("mSuhu").value ? Number(document.getElementById("mSuhu").value) : null
+  };
+  harian = harian.filter(x=>x.tgl!==key);
+  harian.push(entri); harian.sort((a,b)=>a.tgl.localeCompare(b.tgl));
+  simpan(); toast("Data harian tersimpan"); render(); bukaModal(key);
+}
+
+function ubahBulan(n) { bulanOffset += n; render(); }
+document.addEventListener("keydown", e => { if (e.key==="Escape") tutupModal(); });
+
+// ===== START =====
+setMode(mode);
+</script>
+
+<script src="./script.js"></script></body></html>
